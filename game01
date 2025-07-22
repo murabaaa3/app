@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة التحدي العائلي</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts for a nice Arabic font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Libraries for interactive feedback -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.min.js"></script>
+
+    <style>
+        body { font-family: 'Cairo', sans-serif; }
+        .screen { display: none; animation: fadeIn 0.5s; }
+        .screen.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .modal-backdrop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-backdrop.active { display: flex; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex items-center justify-center min-h-screen transition-colors duration-300">
+
+    <div class="container mx-auto p-4 max-w-2xl w-full">
+        
+        <div id="game-container" class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 sm:p-8 transition-colors duration-300">
+            
+            <button id="theme-toggle-btn" class="absolute top-4 left-4 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full p-2 transition-colors">
+                <svg id="theme-icon-sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+                <svg id="theme-icon-moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+            </button>
+
+
+            <!-- Setup Screen -->
+            <div id="setup-screen" class="screen active flex-col items-center gap-6">
+                <h1 class="text-4xl font-bold text-teal-500">التحدي العائلي</h1>
+                <p class="text-gray-600 dark:text-gray-400">أدخل أسماء اللاعبين وفئاتهم العمرية!</p>
+                <div id="players-inputs" class="w-full flex flex-col gap-4"></div>
+                <button id="add-player-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">
+                    + إضافة لاعب جديد
+                </button>
+                <button id="start-game-btn" class="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-4 px-4 rounded-lg text-xl transition transform hover:scale-105 shadow-lg">
+                    ابدأ اللعبة!
+                </button>
+                <p id="setup-error-message" class="text-red-500 font-semibold h-6 text-center"></p>
+                 <button id="go-to-settings-btn-from-setup" class="mt-2 text-gray-600 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition flex items-center gap-2 mx-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-2"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
+                    <span>إعدادات اللعبة</span>
+                </button>
+            </div>
+
+            <!-- Game Screen -->
+            <div id="game-screen" class="screen flex-col items-center gap-6">
+                <div class="w-full flex justify-between items-center">
+                    <button id="go-to-settings-btn" class="text-gray-600 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-2"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
+                        <span>الإعدادات</span>
+                    </button>
+                    <div id="scoreboard" class="flex flex-wrap gap-x-4 gap-y-2 text-sm justify-center"></div>
+                </div>
+                <div class="text-center">
+                    <p class="text-xl text-gray-600 dark:text-gray-400">الدور على:</p>
+                    <h2 id="current-player-name" class="text-5xl font-bold text-teal-500 my-2"></h2>
+                </div>
+                <div class="w-full bg-gray-50 dark:bg-gray-700 rounded-lg p-6 text-center shadow-inner min-h-[200px] flex flex-col items-center justify-center gap-4">
+                    <p id="question-text" class="text-2xl font-semibold"></p>
+                    <p id="answer-text" class="text-2xl font-bold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/50 p-3 rounded-lg hidden"></p>
+                </div>
+                <div id="game-buttons-container" class="w-full flex flex-col gap-4">
+                    <button id="show-answer-btn" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-4 px-4 rounded-lg text-lg transition transform hover:scale-105">
+                        إظهار الإجابة
+                    </button>
+                    <div id="judgement-buttons" class="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 hidden">
+                        <button id="correct-answer-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-4 rounded-lg text-lg transition transform hover:scale-105">
+                            إجابة صحيحة
+                        </button>
+                        <button id="wrong-answer-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-4 px-4 rounded-lg text-lg transition transform hover:scale-105">
+                            إجابة خاطئة
+                        </button>
+                    </div>
+                </div>
+                <button id="end-game-btn" class="mt-4 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-500 transition">إنهاء اللعبة والعودة للبداية</button>
+            </div>
+
+            <!-- Settings Screen -->
+            <div id="settings-screen" class="screen flex-col gap-6">
+                <h2 class="text-3xl font-bold text-teal-500 text-center">لوحة التحكم</h2>
+                
+                <!-- Questions Management -->
+                <div class="w-full">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-xl font-bold">الأسئلة والأجوبة</h3>
+                        <button id="clear-all-questions-btn" class="text-sm text-gray-500 dark:text-gray-400 hover:text-red-600 transition font-semibold">مسح الكل</button>
+                    </div>
+                    <div id="questions-list" class="flex flex-col gap-2 max-h-40 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600"></div>
+                    <div class="flex flex-col gap-2 mt-3">
+                        <div class="relative w-full">
+                            <button id="show-help-btn" class="absolute top-2 left-2 z-10 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-300 font-bold w-6 h-6 rounded-full flex items-center justify-center text-sm transition">؟</button>
+                            <textarea id="new-question-input" placeholder="أضف هنا: السؤال - الإجابة (كل سؤال في سطر)" class="w-full p-2 pl-10 border-2 bg-transparent border-gray-300 dark:border-gray-600 rounded-lg focus:border-teal-500 focus:ring-teal-500 h-24 resize-y"></textarea>
+                        </div>
+                        <button id="add-question-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold p-2 rounded-lg transition">إضافة للأسئلة</button>
+                    </div>
+                </div>
+
+                <!-- Kids' Punishments Management -->
+                <div class="w-full">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-xl font-bold">عقوبات الصغار</h3>
+                        <button id="clear-all-kids-punishments-btn" class="text-sm text-gray-500 dark:text-gray-400 hover:text-red-600 transition font-semibold">مسح الكل</button>
+                    </div>
+                    <div id="kids-punishments-list" class="flex flex-col gap-2 max-h-40 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600"></div>
+                    <div class="flex flex-col gap-2 mt-3">
+                        <div class="relative w-full">
+                            <button id="show-punishment-help-btn" class="absolute top-2 left-2 z-10 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-300 font-bold w-6 h-6 rounded-full flex items-center justify-center text-sm transition">؟</button>
+                            <textarea id="new-kid-punishment-input" placeholder="أضف عقوبة للصغار (كل عقوبة في سطر)" class="w-full p-2 pl-10 border-2 bg-transparent border-gray-300 dark:border-gray-600 rounded-lg focus:border-teal-500 focus:ring-teal-500 h-24 resize-y"></textarea>
+                        </div>
+                        <button id="add-kid-punishment-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold p-2 rounded-lg transition">إضافة للعقوبات</button>
+                    </div>
+                </div>
+
+                <!-- Adults' Punishments Management -->
+                <div class="w-full">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-xl font-bold">عقوبات الكبار</h3>
+                        <button id="clear-all-adults-punishments-btn" class="text-sm text-gray-500 dark:text-gray-400 hover:text-red-600 transition font-semibold">مسح الكل</button>
+                    </div>
+                    <div id="adults-punishments-list" class="flex flex-col gap-2 max-h-40 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600"></div>
+                    <div class="flex flex-col gap-2 mt-3">
+                         <div class="relative w-full">
+                            <button id="show-adult-punishment-help-btn" class="absolute top-2 left-2 z-10 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-300 font-bold w-6 h-6 rounded-full flex items-center justify-center text-sm transition">؟</button>
+                            <textarea id="new-adult-punishment-input" placeholder="أضف عقوبة للكبار (كل عقوبة في سطر)" class="w-full p-2 pl-10 border-2 bg-transparent border-gray-300 dark:border-gray-600 rounded-lg focus:border-teal-500 focus:ring-teal-500 h-24 resize-y"></textarea>
+                         </div>
+                        <button id="add-adult-punishment-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold p-2 rounded-lg transition">إضافة للعقوبات</button>
+                    </div>
+                </div>
+                
+                <button id="back-to-game-btn" class="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition transform hover:scale-105">
+                    العودة
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Previous Players Dropdown -->
+    <div id="previous-players-dropdown" class="hidden absolute z-20 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto"></div>
+
+
+    <!-- Modals -->
+    <div id="punishment-modal" class="modal-backdrop">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 m-4 max-w-md w-full text-center flex flex-col items-center gap-6" role="dialog" aria-modal="true">
+            <h2 class="text-3xl font-bold text-red-600">العقوبة!</h2>
+            <p id="punishment-text" class="text-2xl font-semibold text-gray-700 dark:text-gray-300"></p>
+            <button id="close-punishment-modal-btn" class="mt-4 w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition transform hover:scale-105">
+                حسناً، لنكمل اللعب
+            </button>
+        </div>
+    </div>
+    
+    <div id="confirm-clear-modal" class="modal-backdrop">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 m-4 max-w-md w-full text-center flex flex-col items-center gap-4" role="dialog" aria-modal="true">
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200">تأكيد الحذف</h2>
+            <p id="confirm-modal-text" class="text-lg text-gray-700 dark:text-gray-300"></p>
+            <div class="w-full grid grid-cols-2 gap-4 mt-4">
+                <button id="confirm-yes-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition">نعم، احذف</button>
+                <button id="confirm-no-btn" class="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-3 px-4 rounded-lg transition">لا، تراجع</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="help-modal" class="modal-backdrop">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 m-4 max-w-lg w-full flex flex-col items-center gap-4" role="dialog" aria-modal="true">
+            <h2 class="text-2xl font-bold text-teal-500">طريقة إضافة الأسئلة</h2>
+            <div class="text-right w-full space-y-4">
+                <p>لإضافة سؤال مع إجابته، اكتب السؤال ثم ضع أحد الفواصل التالية:</p>
+                <ul class="list-disc list-inside bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
+                    <li>شرطة ( <span class="font-mono">-</span> )</li>
+                    <li>خط عمودي ( <span class="font-mono">|</span> )</li>
+                    <li>شرطة مائلة ( <span class="font-mono">/</span> )</li>
+                </ul>
+                <p>ثم اكتب الإجابة. يمكنك إضافة عدة أسئلة دفعة واحدة عن طريق وضع كل سؤال في سطر جديد.</p>
+                <p class="font-bold">مثال:</p>
+                <pre class="bg-gray-800 dark:bg-gray-900 text-white p-4 rounded-lg text-left" dir="ltr"><code>ما هي عاصمة السعودية؟ - الرياض
+كم عدد ألوان قوس قزح؟ | 7
+ما هو الكوكب الأحمر؟ / المريخ</code></pre>
+            </div>
+            <button id="close-help-modal-btn" class="mt-4 w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition">فهمت</button>
+        </div>
+    </div>
+    
+    <div id="punishment-help-modal" class="modal-backdrop">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 m-4 max-w-lg w-full flex flex-col items-center gap-4" role="dialog" aria-modal="true">
+            <h2 class="text-2xl font-bold text-teal-500">نصيحة حول العقوبات</h2>
+            <div class="text-right w-full space-y-4">
+                <p>تذكروا أن الهدف من اللعبة هو المرح والضحك في جو عائلي.</p>
+                <p class="font-semibold">يُنصح باختيار عقوبات طريفة ومضحكة، والابتعاد عن كل ما قد يسبب أذى أو إحراجاً.</p>
+                <p>تجنبوا العقوبات التي فيها مشقة غير محتملة (مثل أكل الفلفل الحار)، أو إيذاء جسدي (كالضرب)، أو ما يخالف الأدب (كالشتم)، أو ما هو محرم شرعاً.</p>
+                <p class="bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300 p-3 rounded-lg text-center font-bold">اجعلوها فرصة للضحك، لا للضيق.</p>
+            </div>
+            <button id="close-punishment-help-modal-btn" class="mt-4 w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition">حسناً، فهمت</button>
+        </div>
+    </div>
+    
+    <div id="adult-punishment-help-modal" class="modal-backdrop">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 m-4 max-w-lg w-full flex flex-col items-center gap-4" role="dialog" aria-modal="true">
+            <h2 class="text-2xl font-bold text-teal-500">نصيحة لعقوبات الكبار</h2>
+            <div class="text-right w-full space-y-4">
+                <p>عند اختيار عقوبات للكبار، من الجميل أن تكون طريفة ومناسبة لأعمارهم وتحافظ على روح الدعابة العائلية.</p>
+                <p class="font-semibold">أمثلة مقترحة:</p>
+                <ul class="list-disc list-inside bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
+                    <li>يشارك بذكرى مضحكة من طفولته.</li>
+                    <li>يساعد في تحضير وجبة خفيفة للجميع.</li>
+                    <li>يقرأ قصة قصيرة بصوت معبر.</li>
+                    <li>يمنح كل لاعب لقباً طريفاً لبقية اللعبة.</li>
+                </ul>
+                <p class="bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300 p-3 rounded-lg text-center font-bold">اجعلوها فرصة للضحك، لا للضيق.</p>
+            </div>
+            <button id="close-adult-punishment-help-modal-btn" class="mt-4 w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition">حسناً، فهمت</button>
+        </div>
+    </div>
+
+
+    <!-- **MODIFIED**: Removed Firebase SDK and logic, switched to localStorage -->
+    <script type="module">
+        // --- DOM ELEMENTS ---
+        const screens = { setup: document.getElementById('setup-screen'), game: document.getElementById('game-screen'), settings: document.getElementById('settings-screen') };
+        const playersInputsContainer = document.getElementById('players-inputs');
+        const addPlayerBtn = document.getElementById('add-player-btn');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const endGameBtn = document.getElementById('end-game-btn');
+        const goToSettingsBtn = document.getElementById('go-to-settings-btn');
+        const goToSettingsBtnFromSetup = document.getElementById('go-to-settings-btn-from-setup');
+        const backToGameBtn = document.getElementById('back-to-game-btn');
+        const setupErrorEl = document.getElementById('setup-error-message');
+        
+        // Game screen elements
+        const currentPlayerNameEl = document.getElementById('current-player-name');
+        const questionTextEl = document.getElementById('question-text');
+        const answerTextEl = document.getElementById('answer-text');
+        const showAnswerBtn = document.getElementById('show-answer-btn');
+        const judgementButtons = document.getElementById('judgement-buttons');
+        const scoreboardEl = document.getElementById('scoreboard');
+        const correctAnswerBtn = document.getElementById('correct-answer-btn');
+        const wrongAnswerBtn = document.getElementById('wrong-answer-btn');
+
+        // Settings screen elements
+        const questionsListEl = document.getElementById('questions-list');
+        const newQuestionInput = document.getElementById('new-question-input');
+        const addQuestionBtn = document.getElementById('add-question-btn');
+        const clearAllQuestionsBtn = document.getElementById('clear-all-questions-btn');
+        
+        const kidsPunishmentsListEl = document.getElementById('kids-punishments-list');
+        const newKidPunishmentInput = document.getElementById('new-kid-punishment-input');
+        const addKidPunishmentBtn = document.getElementById('add-kid-punishment-btn');
+        const clearAllKidsPunishmentsBtn = document.getElementById('clear-all-kids-punishments-btn');
+        
+        const adultsPunishmentsListEl = document.getElementById('adults-punishments-list');
+        const newAdultPunishmentInput = document.getElementById('new-adult-punishment-input');
+        const addAdultPunishmentBtn = document.getElementById('add-adult-punishment-btn');
+        const clearAllAdultsPunishmentsBtn = document.getElementById('clear-all-adults-punishments-btn');
+        
+        // Modal elements
+        const punishmentModal = document.getElementById('punishment-modal');
+        const punishmentTextEl = document.getElementById('punishment-text');
+        const closePunishmentModalBtn = document.getElementById('close-punishment-modal-btn');
+        const confirmClearModal = document.getElementById('confirm-clear-modal');
+        const confirmModalText = document.getElementById('confirm-modal-text');
+        const confirmYesBtn = document.getElementById('confirm-yes-btn');
+        const confirmNoBtn = document.getElementById('confirm-no-btn');
+        const helpModal = document.getElementById('help-modal');
+        const closeHelpModalBtn = document.getElementById('close-help-modal-btn');
+        const showHelpBtn = document.getElementById('show-help-btn');
+        const punishmentHelpModal = document.getElementById('punishment-help-modal');
+        const closePunishmentHelpModalBtn = document.getElementById('close-punishment-help-modal-btn');
+        const showPunishmentHelpBtn = document.getElementById('show-punishment-help-btn');
+        const adultPunishmentHelpModal = document.getElementById('adult-punishment-help-modal');
+        const closeAdultPunishmentHelpModalBtn = document.getElementById('close-adult-punishment-help-modal-btn');
+        const showAdultPunishmentHelpBtn = document.getElementById('show-adult-punishment-help-btn');
+        
+        const previousPlayersDropdown = document.getElementById('previous-players-dropdown');
+        const themeToggleBtn = document.getElementById('theme-toggle-btn');
+        const sunIcon = document.getElementById('theme-icon-sun');
+        const moonIcon = document.getElementById('theme-icon-moon');
+
+        // --- GAME STATE ---
+        let players = [];
+        let playerInfo = [{ name: '', isAdult: false }, { name: '', isAdult: false }];
+        let currentPlayerIndex = 0;
+        let lastPlayerIndex = -1;
+        let questions = [];
+        let punishments_kids = [];
+        let punishments_adults = [];
+        let previousPlayers = [];
+        let currentQuestion = null;
+        let previousScreen = 'setup';
+        let clearTarget = null;
+
+        const defaultData = {
+            questions: [{ q: "ما هو أكبر حيوان في العالم؟", a: "الحوت الأزرق" }],
+            punishments_kids: ["قلد صوت الدجاجة", "اقفز على رجل واحدة"],
+            punishments_adults: ["يساعد في غسل الأطباق", "يقرأ قصة للجميع"],
+            previousPlayers: []
+        };
+
+        // --- LOCAL STORAGE DATA HANDLING ---
+        function saveDataToLocalStorage() {
+            const gameData = {
+                questions,
+                punishments_kids,
+                punishments_adults,
+                previousPlayers
+            };
+            localStorage.setItem('familyGameData', JSON.stringify(gameData));
+        }
+
+        function loadDataFromLocalStorage() {
+            const savedData = localStorage.getItem('familyGameData');
+            if (savedData) {
+                const gameData = JSON.parse(savedData);
+                questions = gameData.questions || [];
+                punishments_kids = gameData.punishments_kids || [];
+                punishments_adults = gameData.punishments_adults || [];
+                previousPlayers = gameData.previousPlayers || [];
+            } else {
+                questions = defaultData.questions;
+                punishments_kids = defaultData.punishments_kids;
+                punishments_adults = defaultData.punishments_adults;
+                previousPlayers = defaultData.previousPlayers;
+                saveDataToLocalStorage();
+            }
+            renderSettingsLists();
+        }
+
+        // --- AUDIO & VISUAL FEEDBACK ---
+        let synth;
+        let audioInitialized = false;
+
+        function initAudio() {
+            if (typeof window.Tone === 'undefined') { console.warn("Tone.js has not loaded yet."); return; }
+            if (audioInitialized) return;
+            window.Tone.start();
+            synth = new window.Tone.Synth().toDestination();
+            audioInitialized = true;
+            console.log("Audio context started.");
+        }
+
+        function playCorrectSound() {
+            if (!audioInitialized) return;
+            const now = window.Tone.now();
+            synth.triggerAttackRelease("C4", "8n", now);
+            synth.triggerAttackRelease("E4", "8n", now + 0.12);
+            synth.triggerAttackRelease("G4", "8n", now + 0.24);
+            synth.triggerAttackRelease("C5", "8n", now + 0.36);
+        }
+
+        function playWrongSound() {
+            if (!audioInitialized) return;
+            const now = window.Tone.now();
+            synth.triggerAttackRelease("A3", "8n", now);
+            synth.triggerAttackRelease("F#3", "8n", now + 0.2);
+        }
+
+        function triggerConfetti() {
+            if (typeof window.confetti !== 'function') { console.warn("Confetti.js has not loaded yet."); return; }
+            confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
+        }
+
+        // --- UI & SCREEN MANAGEMENT ---
+        function showScreen(screenId) {
+            Object.values(screens).forEach(screen => screen.classList.remove('active'));
+            if (screens[screenId]) screens[screenId].classList.add('active');
+        }
+        
+        function renderSettingsLists() {
+            questionsListEl.innerHTML = questions.length === 0 ? `<p class="text-gray-500 p-2">لا توجد أسئلة. أضف بعض الأسئلة!</p>` : questions.map((item, index) => `
+                <div class="flex justify-between items-start p-2 bg-white rounded-md border gap-2">
+                    <div class="flex-grow">
+                        <p class="font-semibold"><span class="text-teal-600">س:</span> ${item.q}</p>
+                        <p class="text-sm text-gray-600"><span class="text-green-600">ج:</span> ${item.a}</p>
+                    </div>
+                    <button data-index="${index}" class="delete-question-btn text-red-500 hover:text-red-700 p-1 flex-shrink-0">&times;</button>
+                </div>`).join('');
+
+            kidsPunishmentsListEl.innerHTML = punishments_kids.length === 0 ? `<p class="text-gray-500 p-2">لا توجد عقوبات.</p>` : punishments_kids.map((p, index) => `
+                <div class="flex justify-between items-center p-2 bg-white rounded-md border"><span>${p}</span><button data-index="${index}" class="delete-kid-punishment-btn text-red-500 hover:text-red-700 p-1">&times;</button></div>`).join('');
+            
+            adultsPunishmentsListEl.innerHTML = punishments_adults.length === 0 ? `<p class="text-gray-500 p-2">لا توجد عقوبات.</p>` : punishments_adults.map((p, index) => `
+                <div class="flex justify-between items-center p-2 bg-white rounded-md border"><span>${p}</span><button data-index="${index}" class="delete-adult-punishment-btn text-red-500 hover:text-red-700 p-1">&times;</button></div>`).join('');
+        }
+
+        function updateScoreboard() {
+            scoreboardEl.innerHTML = players.map(player => `<div class="bg-gray-200 rounded-full px-3 py-1 ${player.isAdult ? 'ring-2 ring-amber-500' : ''}">${player.name}: ${player.score}</div>`).join('');
+        }
+        
+        function renderPlayerInputs() {
+            playersInputsContainer.innerHTML = '';
+            playerInfo.forEach((player, index) => {
+                const playerDiv = document.createElement('div');
+                playerDiv.className = 'w-full flex items-center gap-2 sm:gap-4 p-2 bg-gray-50 rounded-lg';
+                
+                const inputContainer = document.createElement('div');
+                inputContainer.className = 'relative flex-grow';
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = `اسم اللاعب ${index + 1}`;
+                input.className = 'player-name-input w-full p-2 border-2 border-gray-300 rounded-lg focus:border-teal-500 focus:ring-teal-500 transition';
+                input.value = player.name;
+                input.dataset.index = index;
+                inputContainer.appendChild(input);
+                playerDiv.appendChild(inputContainer);
+
+                const toggleLabel = document.createElement('label');
+                toggleLabel.className = 'flex items-center cursor-pointer gap-x-2';
+                const toggleText = document.createElement('span');
+                toggleText.className = 'text-gray-700 font-medium';
+                toggleText.textContent = 'بالغ';
+                const toggleContainer = document.createElement('div');
+                toggleContainer.className = 'relative';
+                const toggleInput = document.createElement('input');
+                toggleInput.type = 'checkbox';
+                toggleInput.className = 'sr-only adult-toggle';
+                toggleInput.checked = player.isAdult;
+                toggleInput.dataset.index = index;
+                const toggleBg = document.createElement('div');
+                toggleBg.className = `block w-14 h-8 rounded-full transition ${player.isAdult ? 'bg-teal-500' : 'bg-gray-300'}`;
+                const toggleDot = document.createElement('div');
+                toggleDot.className = `dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition transform ${player.isAdult ? 'translate-x-6' : ''}`;
+                
+                toggleContainer.appendChild(toggleInput);
+                toggleContainer.appendChild(toggleBg);
+                toggleContainer.appendChild(toggleDot);
+                
+                toggleLabel.appendChild(toggleText);
+                toggleLabel.appendChild(toggleContainer);
+                playerDiv.appendChild(toggleLabel);
+
+                if (index >= 2) {
+                    const removeBtn = document.createElement('button');
+                    removeBtn.textContent = '−';
+                    removeBtn.className = 'remove-player-btn bg-red-500 hover:bg-red-600 text-white font-bold w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full transition transform hover:scale-110 text-xl';
+                    removeBtn.dataset.index = index;
+                    playerDiv.appendChild(removeBtn);
+                }
+                playersInputsContainer.appendChild(playerDiv);
+            });
+        }
+
+        // --- GAME LOGIC ---
+        function showSetupError(message) {
+            setupErrorEl.textContent = message;
+            setTimeout(() => { setupErrorEl.textContent = ''; }, 3000);
+        }
+
+        function startGame() {
+            initAudio();
+            setupErrorEl.textContent = '';
+            players = playerInfo.map(p => ({ ...p, name: p.name.trim(), score: 0 })).filter(p => p.name !== '');
+
+            if (players.length < 2) {
+                showSetupError("تحتاج إلى لاعبين اثنين على الأقل لبدء اللعبة!");
+                return;
+            }
+            if (questions.length === 0) {
+                 showSetupError("لا توجد أسئلة! يرجى إضافتها من الإعدادات.");
+                return;
+            }
+            
+            players.forEach(currentPlayer => {
+                const existingPlayerIndex = previousPlayers.findIndex(p => p.name === currentPlayer.name);
+                if (existingPlayerIndex !== -1) {
+                    previousPlayers[existingPlayerIndex].isAdult = currentPlayer.isAdult;
+                } else {
+                    previousPlayers.push({ name: currentPlayer.name, isAdult: currentPlayer.isAdult });
+                }
+            });
+            saveDataToLocalStorage();
+
+            updateScoreboard();
+            nextTurn();
+            showScreen('game');
+        }
+        
+        function nextTurn() {
+            if (players.length === 0) return;
+            let newPlayerIndex;
+            do { newPlayerIndex = Math.floor(Math.random() * players.length); } while (players.length > 1 && newPlayerIndex === lastPlayerIndex);
+            
+            currentPlayerIndex = newPlayerIndex;
+            lastPlayerIndex = newPlayerIndex;
+            currentQuestion = questions[Math.floor(Math.random() * questions.length)];
+            
+            currentPlayerNameEl.textContent = players[currentPlayerIndex].name;
+            questionTextEl.textContent = currentQuestion.q;
+            answerTextEl.textContent = currentQuestion.a;
+
+            answerTextEl.classList.add('hidden');
+            judgementButtons.classList.add('hidden');
+            showAnswerBtn.classList.remove('hidden');
+        }
+
+        function handleCorrectAnswer() {
+            playCorrectSound();
+            triggerConfetti();
+            players[currentPlayerIndex].score++;
+            updateScoreboard();
+            setTimeout(() => { nextTurn(); }, 2000);
+        }
+
+        function handleWrongAnswer() {
+            playWrongSound();
+            const currentPlayer = players[currentPlayerIndex];
+            const punishmentList = currentPlayer.isAdult ? punishments_adults : punishments_kids;
+            const listName = currentPlayer.isAdult ? "الكبار" : "الصغار";
+
+            if (punishmentList.length === 0) {
+                showSetupError(`لا توجد عقوبات مضافة لفئة ${listName}.`);
+                setTimeout(() => nextTurn(), 2000);
+                return;
+            }
+            const randomPunishment = punishmentList[Math.floor(Math.random() * punishmentList.length)];
+            punishmentTextEl.textContent = randomPunishment;
+            punishmentModal.classList.add('active');
+        }
+
+        function resetGame() {
+            players = [];
+            playerInfo = [{ name: '', isAdult: false }, { name: '', isAdult: false }];
+            renderPlayerInputs();
+            showScreen('setup');
+        }
+
+        // --- EVENT LISTENERS ---
+        playersInputsContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-player-btn')) {
+                playerInfo.splice(parseInt(e.target.dataset.index, 10), 1);
+                renderPlayerInputs();
+            }
+        });
+
+        playersInputsContainer.addEventListener('input', (e) => {
+            if (e.target.classList.contains('player-name-input')) {
+                const index = parseInt(e.target.dataset.index, 10);
+                playerInfo[index].name = e.target.value;
+                showPreviousPlayersDropdown(e.target);
+            }
+        });
+        
+        playersInputsContainer.addEventListener('focusin', (e) => {
+            if (e.target.classList.contains('player-name-input')) {
+                showPreviousPlayersDropdown(e.target);
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.player-name-input') && !e.target.closest('#previous-players-dropdown')) {
+                previousPlayersDropdown.classList.add('hidden');
+            }
+        });
+
+        function showPreviousPlayersDropdown(inputElement) {
+            const index = parseInt(inputElement.dataset.index, 10);
+            const currentValue = inputElement.value.toLowerCase();
+            const filteredPlayers = previousPlayers.filter(player => player.name.toLowerCase().includes(currentValue) && player.name.toLowerCase() !== currentValue);
+
+            if (filteredPlayers.length === 0) {
+                previousPlayersDropdown.classList.add('hidden');
+                return;
+            }
+
+            previousPlayersDropdown.innerHTML = '';
+            filteredPlayers.forEach(player => {
+                const itemContainer = document.createElement('div');
+                itemContainer.className = 'flex justify-between items-center p-2 hover:bg-gray-100 cursor-pointer';
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = player.name;
+                nameSpan.className = 'flex-grow';
+                nameSpan.addEventListener('click', () => {
+                    playerInfo[index].name = player.name;
+                    playerInfo[index].isAdult = player.isAdult;
+                    renderPlayerInputs();
+                    previousPlayersDropdown.classList.add('hidden');
+                });
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = '×';
+                deleteBtn.className = 'text-red-500 hover:text-red-700 font-bold px-2';
+                deleteBtn.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    previousPlayers = previousPlayers.filter(p => p.name !== player.name);
+                    saveDataToLocalStorage();
+                    showPreviousPlayersDropdown(inputElement);
+                });
+                
+                itemContainer.appendChild(nameSpan);
+                itemContainer.appendChild(deleteBtn);
+                previousPlayersDropdown.appendChild(itemContainer);
+            });
+
+            const inputRect = inputElement.getBoundingClientRect();
+            document.body.appendChild(previousPlayersDropdown);
+            previousPlayersDropdown.style.top = `${inputRect.bottom + window.scrollY}px`;
+            previousPlayersDropdown.style.left = `${inputRect.left + window.scrollX}px`;
+            previousPlayersDropdown.style.width = `${inputRect.width}px`;
+            previousPlayersDropdown.classList.remove('hidden');
+        }
+
+        playersInputsContainer.addEventListener('change', (e) => {
+            if (e.target.classList.contains('adult-toggle')) {
+                const index = parseInt(e.target.dataset.index, 10);
+                playerInfo[index].isAdult = e.target.checked;
+                renderPlayerInputs();
+            }
+        });
+        
+        addPlayerBtn.addEventListener('click', () => {
+             playerInfo.push({ name: '', isAdult: false });
+             renderPlayerInputs();
+        });
+        
+        startGameBtn.addEventListener('click', startGame);
+        endGameBtn.addEventListener('click', resetGame);
+        correctAnswerBtn.addEventListener('click', handleCorrectAnswer);
+        wrongAnswerBtn.addEventListener('click', handleWrongAnswer);
+        
+        showAnswerBtn.addEventListener('click', () => {
+            answerTextEl.classList.remove('hidden');
+            judgementButtons.classList.remove('hidden');
+            showAnswerBtn.classList.add('hidden');
+        });
+
+        closePunishmentModalBtn.addEventListener('click', () => {
+            punishmentModal.classList.remove('active');
+            nextTurn();
+        });
+
+        const openSettings = () => {
+            previousScreen = screens.game.classList.contains('active') ? 'game' : 'setup';
+            showScreen('settings');
+        };
+        goToSettingsBtn.addEventListener('click', openSettings);
+        goToSettingsBtnFromSetup.addEventListener('click', openSettings);
+        backToGameBtn.addEventListener('click', () => showScreen(previousScreen));
+
+        addQuestionBtn.addEventListener('click', () => {
+            const newQuestions = newQuestionInput.value.trim().split('\n').map(line => {
+                const parts = line.split(/[-|/]/);
+                if (parts.length >= 2) {
+                    const q = parts[0].trim(); const a = parts.slice(1).join('-').trim(); 
+                    if (q && a) return { q, a };
+                } return null;
+            }).filter(item => item !== null);
+            if (newQuestions.length > 0) { 
+                questions.push(...newQuestions); 
+                newQuestionInput.value = ''; 
+                saveDataToLocalStorage();
+                renderSettingsLists();
+            }
+        });
+
+        addKidPunishmentBtn.addEventListener('click', () => {
+            const newPunishments = newKidPunishmentInput.value.trim().split('\n').map(p => p.trim()).filter(p => p !== '');
+            if (newPunishments.length > 0) { 
+                punishments_kids.push(...newPunishments); 
+                newKidPunishmentInput.value = ''; 
+                saveDataToLocalStorage();
+                renderSettingsLists();
+            }
+        });
+
+        addAdultPunishmentBtn.addEventListener('click', () => {
+            const newPunishments = newAdultPunishmentInput.value.trim().split('\n').map(p => p.trim()).filter(p => p !== '');
+            if (newPunishments.length > 0) { 
+                punishments_adults.push(...newPunishments); 
+                newAdultPunishmentInput.value = ''; 
+                saveDataToLocalStorage();
+                renderSettingsLists();
+            }
+        });
+
+        kidsPunishmentsListEl.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-kid-punishment-btn')) { 
+                punishments_kids.splice(parseInt(e.target.dataset.index, 10), 1); 
+                saveDataToLocalStorage();
+                renderSettingsLists();
+            }
+        });
+
+        adultsPunishmentsListEl.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-adult-punishment-btn')) { 
+                punishments_adults.splice(parseInt(e.target.dataset.index, 10), 1); 
+                saveDataToLocalStorage();
+                renderSettingsLists();
+            }
+        });
+        
+        clearAllQuestionsBtn.addEventListener('click', () => {
+            if (questions.length === 0) return;
+            clearTarget = 'questions';
+            confirmModalText.textContent = 'هل أنت متأكد أنك تريد حذف جميع الأسئلة؟';
+            confirmClearModal.classList.add('active');
+        });
+
+        clearAllKidsPunishmentsBtn.addEventListener('click', () => {
+            if (punishments_kids.length === 0) return;
+            clearTarget = 'punishments_kids';
+            confirmModalText.textContent = 'هل أنت متأكد أنك تريد حذف جميع عقوبات الصغار؟';
+            confirmClearModal.classList.add('active');
+        });
+
+        clearAllAdultsPunishmentsBtn.addEventListener('click', () => {
+            if (punishments_adults.length === 0) return;
+            clearTarget = 'punishments_adults';
+            confirmModalText.textContent = 'هل أنت متأكد أنك تريد حذف جميع عقوبات الكبار؟';
+            confirmClearModal.classList.add('active');
+        });
+
+        confirmYesBtn.addEventListener('click', () => {
+            if (clearTarget === 'questions') questions = [];
+            else if (clearTarget === 'punishments_kids') punishments_kids = [];
+            else if (clearTarget === 'punishments_adults') punishments_adults = [];
+            saveDataToLocalStorage();
+            renderSettingsLists();
+            confirmClearModal.classList.remove('active');
+        });
+
+        confirmNoBtn.addEventListener('click', () => {
+            confirmClearModal.classList.remove('active');
+        });
+        
+        showHelpBtn.addEventListener('click', () => { helpModal.classList.add('active'); });
+        closeHelpModalBtn.addEventListener('click', () => { helpModal.classList.remove('active'); });
+        showPunishmentHelpBtn.addEventListener('click', () => { punishmentHelpModal.classList.add('active'); });
+        closePunishmentHelpModalBtn.addEventListener('click', () => { punishmentHelpModal.classList.remove('active'); });
+        showAdultPunishmentHelpBtn.addEventListener('click', () => { adultPunishmentHelpModal.classList.add('active'); });
+        closeAdultPunishmentHelpModalBtn.addEventListener('click', () => { adultPunishmentHelpModal.classList.remove('active'); });
+        
+        // --- INITIALIZATION ---
+        loadDataFromLocalStorage();
+        renderPlayerInputs();
+        showScreen('setup');
+    </script>
+</body>
+</html>
